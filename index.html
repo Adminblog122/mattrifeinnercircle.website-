@@ -75,7 +75,7 @@
             border-color: var(--primary-color);
             color: var(--primary-color);
         }
-        /* Transient message styling */
+        /* Transient message styling for smooth overlay */
         #transientMessage {
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
@@ -275,7 +275,8 @@
         </div> <!-- End of Dynamic Content Card -->
         
         <!-- TRANSIENT SUCCESS MESSAGE OVERLAY (For Page 1) -->
-        <div id="transientMessage" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+        <!-- Starts hidden, 'show' class makes it visible -->
+        <div id="transientMessage" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50 hidden">
             <div class="bg-gray-900 border border-green-500 p-8 rounded-xl text-center shadow-2xl">
                 <p class="text-2xl font-bold text-green-500">Done!</p>
                 <p class="text-gray-200 mt-2">Your details have been submitted successfully.</p>
@@ -324,7 +325,6 @@
 
         // Start on the first page
         let currentPage = 0;
-        transientMessage.classList.add('hidden'); // Hide the success message initially
 
         /**
          * Controls page visibility.
@@ -335,8 +335,9 @@
             pages.forEach((page, index) => {
                 page.classList.toggle('hidden', index !== step);
             });
-            // Ensure success message is hidden if we navigate away from the submission step
+            // Ensure success message is hidden and its visibility classes are reset
             transientMessage.classList.add('hidden');
+            transientMessage.classList.remove('show'); 
             // Scroll to the top of the content card for better UX
             document.getElementById('contentCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -379,6 +380,7 @@
 
         /**
          * Handles submission of Page 1 (Personal Details).
+         * Now correctly displays the transient message with the 'Click to Continue' button.
          */
         function handlePage1Submit(e) {
             e.preventDefault();
@@ -389,12 +391,11 @@
             }
             
             // In a real application, AJAX submission would happen here.
-            // For this implementation, we simulate success and show the transient message.
             console.log('Page 1 data submitted (Simulated)');
 
             // Show success message and transition prompt
             transientMessage.classList.remove('hidden');
-            // The button inside the transientMessage handles the transition to page 2.
+            transientMessage.classList.add('show'); // This makes the overlay visible!
         }
 
         /**
