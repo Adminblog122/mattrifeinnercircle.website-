@@ -116,8 +116,7 @@
                 </h1>
 
                 <!-- Photo Placeholder -->
-                <img src="https://placehold.co/800x400/1A1A1A/FFD700?text=MATT+RIFE+HUB+PHOTO" 
-                     onerror="this.src='https://placehold.co/800x400/1A1A1A/FFD700?text=MATT+RIFE+HUB+PHOTO'"
+                <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjRbNzqhtbBt_hWY7VyTj8i98gSVqnz2wfJhibGl6CvpFtN9qxajMokG37DZ_2kBl2FExa9osuGCeI4GlplqwAk1a8mU_J5zdjY6rjYu1mH8pNcZHz2wLgxSFbnKUUIaKW2bxhI74gVHJCA9_10px9F1BAAyak6cISHirfh7BG2UKYf4ZlLC0GH-kSqX1g/s320/WhatsApp%20Image%202025-10-25%20at%2014.48.23_688eb985.jpg"
                      alt="Matt Rife promotional image" class="rounded-lg w-full object-cover">
                 
                 <p class="text-gray-300 leading-relaxed">
@@ -330,46 +329,76 @@
         
         // Mandatory Global Variables from Canvas Environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- FIX: Robustly parse firebaseConfig to prevent JSON errors ---
+        let firebaseConfig = {};
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+            } catch (e) {
+                console.error("CRITICAL: Failed to parse __firebase_config. Firestore disabled.", e);
+            }
+        }
+        // -----------------------------------------------------------------
 
         /**
          * Initializes Firebase and authenticates the user.
          */
         async function initializeFirebaseAndAuth() {
-            try {
-                // 1. Initialize App and Services
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+            const loadingScreen = document.getElementById('loadingScreen');
+            const contentCard = document.getElementById('contentCard');
 
-                // 2. Sign in using custom token or anonymously
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
+            // Check if we have a valid config to proceed with Firebase init
+            const hasValidConfig = Object.keys(firebaseConfig).length > 0;
+            
+            try {
+                if (hasValidConfig) {
+                    // 1. Initialize App and Services
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    // 2. Sign in using custom token or anonymously
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    // 3. Wait for auth state to be confirmed
+                    await new Promise(resolve => {
+                        const unsubscribe = onAuthStateChanged(auth, (user) => {
+                            currentUserId = user ? user.uid : crypto.randomUUID();
+                            document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId + (user ? '' : ' (Anon Fallback)');
+                            unsubscribe(); 
+                            resolve();
+                        });
+                    });
+                    
+                    // 4. Once authenticated, check the user's flow status
+                    await checkUserFlowStatus();
+
                 } else {
-                    await signInAnonymously(auth);
+                    // If no valid config, skip Firebase initialization
+                    console.warn("No valid Firebase config provided. Persistence is disabled. Starting at Page 1.");
+                    // Ensure the card is shown and loading is hidden after a brief delay for smoother transition
+                    setTimeout(() => {
+                        loadingScreen.classList.add('hidden');
+                        contentCard.classList.remove('hidden');
+                        window.showPage(0);
+                    }, 500); 
                 }
 
-                // 3. Wait for auth state to be confirmed
-                await new Promise(resolve => {
-                    const unsubscribe = onAuthStateChanged(auth, (user) => {
-                        currentUserId = user ? user.uid : crypto.randomUUID();
-                        document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId + (user ? '' : ' (Anon Fallback)');
-                        unsubscribe(); 
-                        resolve();
-                    });
-                });
-                
-                // 4. Once authenticated, check the user's flow status
-                await checkUserFlowStatus();
-
             } catch (error) {
-                console.error("Firebase Initialization Error. Running in fallback mode.", error);
-                // On error, hide loading and show the first page
-                document.getElementById('loadingScreen').innerHTML = '<p class="text-red-500">Error loading app. Please check console for details.</p>';
+                // This catch handles errors during Firebase execution (not parsing errors)
+                console.error("Firebase Runtime Error. Persistence features are disabled. Starting app.", error);
+                
+                // Ensure UI proceeds to the app content regardless of the error
+                loadingScreen.innerHTML = '<p class="text-red-500 mt-4 text-lg">Error loading persistence. Proceeding...</p>';
                 setTimeout(() => {
-                    document.getElementById('loadingScreen').classList.add('hidden');
-                    document.getElementById('contentCard').classList.remove('hidden');
+                    loadingScreen.classList.add('hidden');
+                    contentCard.classList.remove('hidden');
                     window.showPage(0); // Default to start page
                 }, 1000);
             }
@@ -382,12 +411,12 @@
             const loadingScreen = document.getElementById('loadingScreen');
             const contentCard = document.getElementById('contentCard');
 
-            // Hide loading screen and show content once status is checked, regardless of the outcome
+            // Hide loading screen and show content once status is checked
             loadingScreen.classList.add('hidden');
             contentCard.classList.remove('hidden');
 
             if (!db || !currentUserId) {
-                console.warn("Firestore not ready. Starting at page 1.");
+                // If db is not initialized (e.g., config error), start at page 1
                 return window.showPage(0); 
             }
 
@@ -412,7 +441,7 @@
          */
         window.markPage1Complete = async function() {
             if (!db || !currentUserId) {
-                console.error("Firestore not ready. Cannot mark completion.");
+                console.warn("Firestore not ready. Cannot mark completion.");
                 return;
             }
             const statusRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'user_status', 'flow_data');
@@ -515,8 +544,7 @@
                 return;
             }
             
-            // Mark completion in Firestore for persistence
-            // This function is defined in the module script block and hoisted to window
+            // Mark completion in Firestore for persistence (Handles disabled Firestore gracefully)
             window.markPage1Complete(); 
 
             // Show success message and transition prompt
