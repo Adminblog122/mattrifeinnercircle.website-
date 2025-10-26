@@ -98,9 +98,9 @@
     <div id="appWrapper" class="w-full max-w-xl mx-auto my-8">
         
         <!-- Loading Screen (Visible while checking Firestore status) -->
-        <div id="loadingScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-secondary-color z-50 transition duration-300">
+        <div id="loadingScreen" class="fixed inset-0 flex flex-col items-center justify-center bg-secondary-color z-50 transition duration-300">
              <div class="spinner"></div>
-             <p class="text-gray-300 mt-4 text-lg">Initializing...</p>
+             <p class="text-gray-300 mt-4 text-lg">Initializing Connection...</p>
         </div>
 
         <!-- Dynamic Content Card -->
@@ -193,7 +193,7 @@
                 </div>
 
                 <!-- Continue Button -->
-                <button onclick="showPage(2)" class="submit-btn w-full mt-6 py-3 px-4 rounded-lg shadow-xl text-lg transition duration-150">
+                <button onclick="window.showPage(2)" class="submit-btn w-full mt-6 py-3 px-4 rounded-lg shadow-xl text-lg transition duration-150">
                     Continue to Booking
                 </button>
             </div>
@@ -234,7 +234,7 @@
                         <code id="bitcoinAddress" class="block bg-gray-900 p-3 rounded-lg border border-yellow-500 text-yellow-200 break-all select-all font-mono text-sm cursor-pointer">
                             bc1qvg6e3e0426e459q2de8nw9jrvgr6l4skrdxrme
                         </code>
-                        <button type="button" onclick="copyBitcoinAddress()" class="absolute top-1 right-1 p-1 text-xs bg-yellow-600 text-black rounded hover:bg-yellow-500 transition">
+                        <button type="button" onclick="window.copyBitcoinAddress()" class="absolute top-1 right-1 p-1 text-xs bg-yellow-600 text-black rounded hover:bg-yellow-500 transition">
                             Copy
                         </button>
                         <p id="copyMessage" class="hidden text-xs text-green-500 mt-1 text-right">Copied!</p>
@@ -287,7 +287,7 @@
             <div class="bg-gray-900 border border-green-500 p-8 rounded-xl text-center shadow-2xl">
                 <p class="text-2xl font-bold text-green-500">Done!</p>
                 <p class="text-gray-200 mt-2">Your details have been submitted successfully.</p>
-                <button onclick="showPage(1)" class="submit-btn mt-4 py-2 px-6 rounded-lg transition duration-150">
+                <button onclick="window.showPage(1)" class="submit-btn mt-4 py-2 px-6 rounded-lg transition duration-150">
                     Click to Continue
                 </button>
             </div>
@@ -298,7 +298,7 @@
             <div class="bg-red-900 border border-red-500 p-8 rounded-xl text-center shadow-2xl max-w-sm mx-auto">
                 <p class="text-2xl font-bold text-red-300">Validation Error</p>
                 <p id="errorMessage" class="text-red-100 mt-4 text-sm"></p>
-                <button onclick="hideErrorModal()" class="mt-6 py-2 px-4 rounded bg-red-500 text-white font-medium hover:bg-red-600 transition">
+                <button onclick="window.hideErrorModal()" class="mt-6 py-2 px-4 rounded bg-red-500 text-white font-medium hover:bg-red-600 transition">
                     OK
                 </button>
             </div>
@@ -323,10 +323,10 @@
         // Enable Firebase Debug Logging
         setLogLevel('debug');
 
-        // Global Firebase and App State Variables
+        // Global Firebase and App State Variables (Exposed via window)
         let db;
         let auth;
-        let currentUserId = 'Loading...';
+        let currentUserId = null;
         
         // Mandatory Global Variables from Canvas Environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -338,45 +338,40 @@
          */
         async function initializeFirebaseAndAuth() {
             try {
+                // 1. Initialize App and Services
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                // Sign in using custom token or anonymously
+                // 2. Sign in using custom token or anonymously
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                // Wait for auth state to be confirmed
+                // 3. Wait for auth state to be confirmed
                 await new Promise(resolve => {
                     const unsubscribe = onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            currentUserId = user.uid;
-                            document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId;
-                            resolve();
-                        } else {
-                            // If sign-in failed, use a random ID and resolve anyway
-                            currentUserId = crypto.randomUUID();
-                            document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId + ' (Anonymous)';
-                            resolve(); 
-                        }
+                        currentUserId = user ? user.uid : crypto.randomUUID();
+                        document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId + (user ? '' : ' (Anon Fallback)');
                         unsubscribe(); 
+                        resolve();
                     });
                 });
                 
-                // Once authenticated, check the user's flow status
+                // 4. Once authenticated, check the user's flow status
                 await checkUserFlowStatus();
-                document.getElementById('contentCard').classList.remove('hidden');
-                document.getElementById('loadingScreen').classList.add('hidden');
 
             } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                document.getElementById('loadingScreen').innerHTML = '<p class="text-red-500">Error loading app. See console for details.</p>';
-                // Fallback to Page 1 if Firebase fails
-                window.showPage(0); 
-                document.getElementById('contentCard').classList.remove('hidden');
+                console.error("Firebase Initialization Error. Running in fallback mode.", error);
+                // On error, hide loading and show the first page
+                document.getElementById('loadingScreen').innerHTML = '<p class="text-red-500">Error loading app. Please check console for details.</p>';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    document.getElementById('contentCard').classList.remove('hidden');
+                    window.showPage(0); // Default to start page
+                }, 1000);
             }
         }
 
@@ -384,21 +379,31 @@
          * Checks if the user has completed Page 1 and adjusts the starting page.
          */
         async function checkUserFlowStatus() {
-            if (!db || !currentUserId) return window.showPage(0); // Default to start page if not ready
+            const loadingScreen = document.getElementById('loadingScreen');
+            const contentCard = document.getElementById('contentCard');
+
+            // Hide loading screen and show content once status is checked, regardless of the outcome
+            loadingScreen.classList.add('hidden');
+            contentCard.classList.remove('hidden');
+
+            if (!db || !currentUserId) {
+                console.warn("Firestore not ready. Starting at page 1.");
+                return window.showPage(0); 
+            }
 
             const statusRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'user_status', 'flow_data');
             try {
                 const docSnap = await getDoc(statusRef);
                 if (docSnap.exists() && docSnap.data().page1Completed === true) {
-                    console.log("User status found: Page 1 completed. Starting on Page 2.");
+                    console.log("User status found: Page 1 completed. Starting on Page 2 (Index 1).");
                     window.showPage(1); // Skip to Page 2
                 } else {
-                    console.log("User status not found or incomplete. Starting on Page 1.");
+                    console.log("User status not found or incomplete. Starting on Page 1 (Index 0).");
                     window.showPage(0); // Start on Page 1
                 }
             } catch (error) {
-                console.error("Error reading user status from Firestore:", error);
-                window.showPage(0); // Default to start page on error
+                console.error("Error reading user status from Firestore. Starting at page 1.", error);
+                window.showPage(0); 
             }
         }
 
@@ -407,12 +412,11 @@
          */
         window.markPage1Complete = async function() {
             if (!db || !currentUserId) {
-                console.error("Firestore not ready to mark completion.");
+                console.error("Firestore not ready. Cannot mark completion.");
                 return;
             }
             const statusRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'user_status', 'flow_data');
             try {
-                // Use setDoc to create or overwrite the status document
                 await setDoc(statusRef, { page1Completed: true, completedAt: new Date().toISOString() }, { merge: true });
                 console.log("Page 1 completion successfully marked in Firestore.");
             } catch (error) {
@@ -420,8 +424,8 @@
             }
         }
 
-        // Initialize Firebase on window load
-        window.onload = initializeFirebaseAndAuth;
+        // Initialize Firebase on document load
+        document.addEventListener('DOMContentLoaded', initializeFirebaseAndAuth);
     </script>
     
     <script>
@@ -467,7 +471,7 @@
         /**
          * Shows the error modal with a specific message.
          */
-        function showErrorModal(message) {
+        window.showErrorModal = function(message) {
             errorMessage.textContent = message;
             errorModal.classList.remove('hidden');
         }
@@ -475,7 +479,7 @@
         /**
          * Hides the error modal.
          */
-        function hideErrorModal() {
+        window.hideErrorModal = function() {
             errorModal.classList.add('hidden');
         }
 
@@ -503,7 +507,7 @@
         /**
          * Handles submission of Page 1 (Personal Details) and marks completion in Firestore.
          */
-        function handlePage1Submit(e) {
+        window.handlePage1Submit = function(e) {
             e.preventDefault();
 
             if (!detailsForm.checkValidity()) {
@@ -512,11 +516,13 @@
             }
             
             // Mark completion in Firestore for persistence
-            window.markPage1Complete();
+            // This function is defined in the module script block and hoisted to window
+            window.markPage1Complete(); 
 
             // Show success message and transition prompt
             transientMessage.classList.remove('hidden');
-            transientMessage.classList.add('show'); 
+            // Use setTimeout to ensure the transition property is applied
+            setTimeout(() => { transientMessage.classList.add('show'); }, 10); 
         }
 
         /**
@@ -543,38 +549,39 @@
         /**
          * Handles submission of Page 3 (Booking & Payment).
          */
-        function handlePage3Submit(e) {
+        window.handlePage3Submit = function(e) {
             e.preventDefault();
 
             const selectedOptions = document.querySelectorAll('#bookingForm input[name="BookingOption"]:checked');
             const receiptFile = document.getElementById('paymentReceipt').files[0];
 
             if (selectedOptions.length === 0) {
-                showErrorModal("Please choose at least one way to connect with Matt Rife.");
+                window.showErrorModal("Please choose at least one way to connect with Matt Rife.");
                 return;
             }
             
             if (!receiptFile) {
-                showErrorModal("Please upload your payment receipt photo before submitting.");
+                window.showErrorModal("Please upload your payment receipt photo before submitting.");
                 return;
             }
 
             console.log('Page 3 data submitted (Simulated)');
 
             // If everything is valid, proceed to the final confirmation page
-            showPage(3); // Page 4 is index 3
+            window.showPage(3); // Page 4 is index 3
         }
 
         /**
          * Utility to copy the bitcoin address to the clipboard.
          */
-        function copyBitcoinAddress() {
+        window.copyBitcoinAddress = function() {
             const address = document.getElementById('bitcoinAddress').textContent.trim();
             const tempInput = document.createElement('textarea');
             tempInput.value = address;
             document.body.appendChild(tempInput);
             tempInput.select();
-            document.execCommand('copy');
+            // Use document.execCommand('copy') for better iFrame compatibility
+            document.execCommand('copy'); 
             document.body.removeChild(tempInput);
 
             // Show copied message
@@ -585,10 +592,8 @@
             }, 1500);
         }
 
-        // Initialize total on load (moved initialization logic to Firebase setup)
-        document.addEventListener('DOMContentLoaded', () => {
-            updateBookingTotal(); 
-        });
+        // Initialize total on DOM content loaded
+        document.addEventListener('DOMContentLoaded', updateBookingTotal);
     </script>
 </body>
 </html>
