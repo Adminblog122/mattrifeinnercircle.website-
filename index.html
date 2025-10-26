@@ -52,14 +52,6 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(255, 215, 0, 0.5);
         }
-        .checkbox-container input:checked ~ .checkmark {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-        }
         .file-upload-label {
             display: block;
             cursor: pointer;
@@ -85,6 +77,19 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* Loading spinner style */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
@@ -92,11 +97,17 @@
     <!-- Main Content Container -->
     <div id="appWrapper" class="w-full max-w-xl mx-auto my-8">
         
+        <!-- Loading Screen (Visible while checking Firestore status) -->
+        <div id="loadingScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-secondary-color z-50 transition duration-300">
+             <div class="spinner"></div>
+             <p class="text-gray-300 mt-4 text-lg">Initializing...</p>
+        </div>
+
         <!-- Dynamic Content Card -->
-        <div id="contentCard" class="main-card rounded-xl p-6 sm:p-8 w-full">
+        <div id="contentCard" class="main-card rounded-xl p-6 sm:p-8 w-full hidden">
 
             <!-- --------------------------------- -->
-            <!-- PAGE 1: WELCOME & FORM -->
+            <!-- PAGE 1: WELCOME & FORM (Default start) -->
             <!-- --------------------------------- -->
             <div id="page1" class="page-content space-y-6">
                 
@@ -105,12 +116,13 @@
                 </h1>
 
                 <!-- Photo Placeholder -->
-                <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjRbNzqhtbBt_hWY7VyTj8i98gSVqnz2wfJhibGl6CvpFtN9qxajMokG37DZ_2kBl2FExa9osuGCeI4GlplqwAk1a8mU_J5zdjY6rjYu1mH8pNcZHz2wLgxSFbnKUUIaKW2bxhI74gVHJCA9_10px9F1BAAyak6cISHirfh7BG2UKYf4ZlLC0GH-kSqX1g/s320/WhatsApp%20Image%202025-10-25%20at%2014.48.23_688eb985.jpg"
+                <img src="https://placehold.co/800x400/1A1A1A/FFD700?text=MATT+RIFE+HUB+PHOTO" 
+                     onerror="this.src='https://placehold.co/800x400/1A1A1A/FFD700?text=MATT+RIFE+HUB+PHOTO'"
                      alt="Matt Rife promotional image" class="rounded-lg w-full object-cover">
                 
                 <p class="text-gray-300 leading-relaxed">
-                    This is where real connections happen. I appreciate every fan who believes in my journey. You are the reason I keep creating, pushing, and shining.
-                    Here, you can book exclusive moments with me, join special events, and be among the first to know what’s coming next.
+                    This is where **real connections happen**. I appreciate every fan who believes in my journey. You are the reason I keep creating, pushing, and shining.
+                    Here, you can book **exclusive moments** with me, join special events, and be among the first to know what’s coming next.
                     <span class="block mt-2 font-semibold">Thank you for being part of my story.</span>
                 </p>
 
@@ -147,12 +159,17 @@
                         Continue
                     </button>
                 </form>
+                
+                <p id="currentUserIdDisplay" class="text-xs text-gray-500 text-center pt-2 break-all">User ID: Loading...</p>
             </div>
 
             <!-- --------------------------------- -->
-            <!-- PAGE 2: INSPIRATION -->
+            <!-- PAGE 2: INSPIRATION (Welcome Back Page) -->
             <!-- --------------------------------- -->
             <div id="page2" class="page-content hidden space-y-8">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white text-center mb-6">
+                    <span class="text-yellow-400">Welcome Back, Family.</span>
+                </h1>
                 <div class="space-y-4">
                     <img src="https://placehold.co/600x300/1A1A1A/FFD700?text=PASSION" 
                          onerror="this.src='https://placehold.co/600x300/1A1A1A/FFD700?text=PASSION'"
@@ -171,23 +188,12 @@
                          alt="Matt Rife image symbolizing interaction" class="rounded-lg w-full object-cover">
                     <p class="text-gray-300 leading-relaxed">
                         I believe fans deserve more than just watching from a distance. You deserve to interact, laugh, speak openly, and share experiences with me.
-                        Meet and Greet sessions help us build a **deeper connection**. Whether it is a quick chat, a private hangout, or an exclusive celebration, the moment is ours to create. This platform is for you. Let’s keep rising together.
-                    </p>
-                </div>
-
-                <hr class="border-yellow-400/30">
-
-                <div class="space-y-4">
-                    <img src="https://placehold.co/600x300/1A1A1A/FFD700?text=FAMILY" 
-                         onerror="this.src='https://placehold.co/600x300/1A1A1A/FFD700?text=FAMILY'"
-                         alt="Matt Rife image symbolizing family" class="rounded-lg w-full object-cover">
-                    <p class="text-gray-300 leading-relaxed">
-                        I don’t just want fans. I want a **family**. We laugh. We inspire. We grow. Your support is the strength behind my ambitions. Let’s keep building something legendary together.
+                        Meet and Greet sessions help us build a **deeper connection**. This platform is for you. Let’s keep rising together.
                     </p>
                 </div>
 
                 <!-- Continue Button -->
-                <button onclick="showPage(3)" class="submit-btn w-full mt-6 py-3 px-4 rounded-lg shadow-xl text-lg transition duration-150">
+                <button onclick="showPage(2)" class="submit-btn w-full mt-6 py-3 px-4 rounded-lg shadow-xl text-lg transition duration-150">
                     Continue to Booking
                 </button>
             </div>
@@ -247,10 +253,11 @@
 
                     <!-- Submit Button -->
                     <button type="submit" onclick="handlePage3Submit(event)" class="submit-btn w-full mt-6 py-3 px-4 rounded-lg shadow-xl text-lg transition duration-150">
-                        Submit
+                        Submit Booking
                     </button>
                 </form>
             </div>
+
 
             <!-- --------------------------------- -->
             <!-- PAGE 4: FINAL CONFIRMATION -->
@@ -259,10 +266,12 @@
                 <h1 class="text-5xl font-extrabold text-yellow-400 mb-4">
                     Congratulations 🎉 🎉 🎉 
                 </h1>
-                <p class="text-xl text-gray-200 font-semibold">Join MATT RIFE inner circle</p>
+                <p class="text-xl text-gray-200 font-semibold">You're now one step closer to the inner circle!</p>
 
-                <a href="https://t.me/+RuR5syJ3RCIyMmVk" target="_blank" class="block bg-yellow-500 text-black font-bold py-3 px-6 rounded-lg text-lg hover:bg-yellow-400 transition transform hover:scale-105">
-                    Click Here to Join Telegram Group
+                <!-- This is the last call-to-action link, made very prominent -->
+                <a href="https://t.me/+RuR5syJ3RCIyMmVk" target="_blank" class="block bg-yellow-500 text-black font-bold py-4 px-6 rounded-lg text-lg hover:bg-yellow-400 transition transform hover:scale-105 shadow-2xl">
+                    <span class="text-2xl block mb-1">Join the Official Telegram Group</span>
+                    <span class="text-sm font-normal">Click to connect instantly!</span>
                 </a>
                 
                 <p class="mt-4 text-gray-300">
@@ -274,12 +283,11 @@
         </div> <!-- End of Dynamic Content Card -->
         
         <!-- TRANSIENT SUCCESS MESSAGE OVERLAY (For Page 1) -->
-        <!-- Starts hidden, 'show' class makes it visible -->
         <div id="transientMessage" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50 hidden">
             <div class="bg-gray-900 border border-green-500 p-8 rounded-xl text-center shadow-2xl">
                 <p class="text-2xl font-bold text-green-500">Done!</p>
                 <p class="text-gray-200 mt-2">Your details have been submitted successfully.</p>
-                <button onclick="showPage(2)" class="submit-btn mt-4 py-2 px-6 rounded-lg transition duration-150">
+                <button onclick="showPage(1)" class="submit-btn mt-4 py-2 px-6 rounded-lg transition duration-150">
                     Click to Continue
                 </button>
             </div>
@@ -306,14 +314,124 @@
         <a href="mailto:mattrifemgt@yahoo.com" class="text-yellow-400 hover:underline font-medium">mattrifemgt@yahoo.com</a>
     </footer>
 
+    <!-- Firebase Imports and Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Enable Firebase Debug Logging
+        setLogLevel('debug');
+
+        // Global Firebase and App State Variables
+        let db;
+        let auth;
+        let currentUserId = 'Loading...';
+        
+        // Mandatory Global Variables from Canvas Environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        /**
+         * Initializes Firebase and authenticates the user.
+         */
+        async function initializeFirebaseAndAuth() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Sign in using custom token or anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Wait for auth state to be confirmed
+                await new Promise(resolve => {
+                    const unsubscribe = onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUserId = user.uid;
+                            document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId;
+                            resolve();
+                        } else {
+                            // If sign-in failed, use a random ID and resolve anyway
+                            currentUserId = crypto.randomUUID();
+                            document.getElementById('currentUserIdDisplay').textContent = 'User ID: ' + currentUserId + ' (Anonymous)';
+                            resolve(); 
+                        }
+                        unsubscribe(); 
+                    });
+                });
+                
+                // Once authenticated, check the user's flow status
+                await checkUserFlowStatus();
+                document.getElementById('contentCard').classList.remove('hidden');
+                document.getElementById('loadingScreen').classList.add('hidden');
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                document.getElementById('loadingScreen').innerHTML = '<p class="text-red-500">Error loading app. See console for details.</p>';
+                // Fallback to Page 1 if Firebase fails
+                window.showPage(0); 
+                document.getElementById('contentCard').classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Checks if the user has completed Page 1 and adjusts the starting page.
+         */
+        async function checkUserFlowStatus() {
+            if (!db || !currentUserId) return window.showPage(0); // Default to start page if not ready
+
+            const statusRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'user_status', 'flow_data');
+            try {
+                const docSnap = await getDoc(statusRef);
+                if (docSnap.exists() && docSnap.data().page1Completed === true) {
+                    console.log("User status found: Page 1 completed. Starting on Page 2.");
+                    window.showPage(1); // Skip to Page 2
+                } else {
+                    console.log("User status not found or incomplete. Starting on Page 1.");
+                    window.showPage(0); // Start on Page 1
+                }
+            } catch (error) {
+                console.error("Error reading user status from Firestore:", error);
+                window.showPage(0); // Default to start page on error
+            }
+        }
+
+        /**
+         * Marks Page 1 as complete in Firestore.
+         */
+        window.markPage1Complete = async function() {
+            if (!db || !currentUserId) {
+                console.error("Firestore not ready to mark completion.");
+                return;
+            }
+            const statusRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'user_status', 'flow_data');
+            try {
+                // Use setDoc to create or overwrite the status document
+                await setDoc(statusRef, { page1Completed: true, completedAt: new Date().toISOString() }, { merge: true });
+                console.log("Page 1 completion successfully marked in Firestore.");
+            } catch (error) {
+                console.error("Error setting Page 1 completion status:", error);
+            }
+        }
+
+        // Initialize Firebase on window load
+        window.onload = initializeFirebaseAndAuth;
+    </script>
+    
     <script>
         // --- Core JavaScript Logic for Navigation and Interaction ---
         
         const pages = [
-            document.getElementById('page1'), 
-            document.getElementById('page2'), 
-            document.getElementById('page3'), 
-            document.getElementById('page4')
+            document.getElementById('page1'), // Index 0
+            document.getElementById('page2'), // Index 1
+            document.getElementById('page3'), // Index 2
+            document.getElementById('page4')  // Index 3
         ];
         const detailsForm = document.getElementById('detailsForm');
         const bookingForm = document.getElementById('bookingForm');
@@ -329,7 +447,11 @@
          * Controls page visibility.
          * @param {number} step - The index of the page to show (0-3).
          */
-        function showPage(step) {
+        window.showPage = function(step) {
+            if (step < 0 || step >= pages.length) {
+                console.error("Invalid page step:", step);
+                return;
+            }
             currentPage = step;
             pages.forEach((page, index) => {
                 page.classList.toggle('hidden', index !== step);
@@ -338,7 +460,8 @@
             transientMessage.classList.add('hidden');
             transientMessage.classList.remove('show'); 
             // Scroll to the top of the content card for better UX
-            document.getElementById('contentCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const card = document.getElementById('contentCard');
+            if(card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         
         /**
@@ -378,23 +501,22 @@
         // --- Page-Specific Logic ---
 
         /**
-         * Handles submission of Page 1 (Personal Details).
-         * Now correctly displays the transient message with the 'Click to Continue' button.
+         * Handles submission of Page 1 (Personal Details) and marks completion in Firestore.
          */
         function handlePage1Submit(e) {
             e.preventDefault();
 
             if (!detailsForm.checkValidity()) {
-                detailsForm.reportValidity(); // Show browser validation errors
+                detailsForm.reportValidity(); 
                 return;
             }
             
-            // In a real application, AJAX submission would happen here.
-            console.log('Page 1 data submitted (Simulated)');
+            // Mark completion in Firestore for persistence
+            window.markPage1Complete();
 
             // Show success message and transition prompt
             transientMessage.classList.remove('hidden');
-            transientMessage.classList.add('show'); // This makes the overlay visible!
+            transientMessage.classList.add('show'); 
         }
 
         /**
@@ -406,7 +528,6 @@
             
             checkboxes.forEach(cb => {
                 if (cb.checked) {
-                    // Use parseFloat to handle price string in data attribute
                     total += parseFloat(cb.getAttribute('data-price')) || 0;
                 }
             });
@@ -438,14 +559,10 @@
                 return;
             }
 
-            console.log('Page 3 data submitted (Simulated)', {
-                Options: Array.from(selectedOptions).map(opt => opt.value),
-                Total: totalDisplay.textContent,
-                ReceiptFilename: receiptFile.name
-            });
+            console.log('Page 3 data submitted (Simulated)');
 
             // If everything is valid, proceed to the final confirmation page
-            showPage(4);
+            showPage(3); // Page 4 is index 3
         }
 
         /**
@@ -468,11 +585,10 @@
             }, 1500);
         }
 
-        // Initialize the page on load
-        window.onload = function() {
-            showPage(0);
-            updateBookingTotal(); // Set initial total to $0
-        }
+        // Initialize total on load (moved initialization logic to Firebase setup)
+        document.addEventListener('DOMContentLoaded', () => {
+            updateBookingTotal(); 
+        });
     </script>
 </body>
 </html>
